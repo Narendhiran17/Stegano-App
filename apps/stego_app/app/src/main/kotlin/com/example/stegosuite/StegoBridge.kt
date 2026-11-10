@@ -57,6 +57,8 @@ class StegoBridge(private val context: Context) {
                         put("formatVersion", info.formatVersion)
                         put("type", info.payloadType)
                         put("isEncrypted", info.isEncrypted)
+                        put("isScattered", info.isScattered)
+                        put("isDeniable", info.isDeniable)
                         put("declaredPayloadLength", info.declaredPayloadLength)
                     })
                     put("carrier", JSONObject().apply {
@@ -78,7 +80,10 @@ class StegoBridge(private val context: Context) {
         fileBase64: String?,
         filename: String?,
         mediaType: String?,
-        password: String?
+        password: String?,
+        isScattered: Boolean,
+        decoyText: String?,
+        decoyPassword: String?
     ): String {
         return try {
             val carrierBytes = Base64.decode(carrierBase64, Base64.DEFAULT)
@@ -92,7 +97,10 @@ class StegoBridge(private val context: Context) {
                 fileBytes = fileBytes,
                 filename = filename,
                 mediaType = mediaType,
-                password = password
+                password = password,
+                isScattered = isScattered,
+                decoyText = decoyText,
+                decoyPassword = decoyPassword
             )
 
             val base64Stego = Base64.encodeToString(stegoBytes, Base64.NO_WRAP)
@@ -107,6 +115,30 @@ class StegoBridge(private val context: Context) {
     }
 
     @JavascriptInterface
+    fun encode(
+        carrierBase64: String,
+        type: String,
+        text: String?,
+        fileBase64: String?,
+        filename: String?,
+        mediaType: String?,
+        password: String?
+    ): String {
+        return encode(
+            carrierBase64 = carrierBase64,
+            type = type,
+            text = text,
+            fileBase64 = fileBase64,
+            filename = filename,
+            mediaType = mediaType,
+            password = password,
+            isScattered = false,
+            decoyText = null,
+            decoyPassword = null
+        )
+    }
+
+    @JavascriptInterface
     fun extract(carrierBase64: String, password: String?): String {
         return try {
             val carrierBytes = Base64.decode(carrierBase64, Base64.DEFAULT)
@@ -117,6 +149,9 @@ class StegoBridge(private val context: Context) {
                 if (res.success) {
                     put("type", res.type)
                     put("isEncrypted", res.isEncrypted)
+                    put("isScattered", res.isScattered)
+                    put("isDeniable", res.isDeniable)
+                    put("isDecoy", res.isDecoy)
                     if (res.type == "text") {
                         put("text", res.text)
                     } else {
@@ -169,6 +204,40 @@ class StegoBridge(private val context: Context) {
     }
 
     @JavascriptInterface
+    fun saveExtractedFile(fileBase64: String, filename: String, mimeType: String): Boolean {
+        return try {
+            val bytes = Base64.decode(fileBase64, Base64.DEFAULT)
+            val cleanName = filename.ifEmpty { "extracted_secret.bin" }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, cleanName)
+                    put(MediaStore.Downloads.MIME_TYPE, mimeType.ifEmpty { "application/octet-stream" })
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/StegoSuite")
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: return false
+                context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                values.clear()
+                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+            } else {
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val stegoDir = File(dir, "StegoSuite").also { if (!it.exists()) it.mkdirs() }
+                val file = File(stegoDir, cleanName)
+                FileOutputStream(file).use { it.write(bytes) }
+            }
+
+            Toast.makeText(context, "File saved to Downloads/StegoSuite/$cleanName", Toast.LENGTH_LONG).show()
+            true
+        } catch (e: Exception) {
+            Toast.makeText(context, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+            false
+        }
+    }
+
+    @JavascriptInterface
     fun shareFile(base64Data: String, filename: String, mimeType: String) {
         try {
             val bytes = Base64.decode(base64Data, Base64.DEFAULT)
@@ -182,7 +251,7 @@ class StegoBridge(private val context: Context) {
             )
 
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = mimeType
+                type = mimeType.ifEmpty { "*/*" }
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }

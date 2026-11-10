@@ -61,6 +61,8 @@ sealed class InspectionResult {
 class SupportedPayloadInspection extends InspectionResult {
   final PayloadType payloadType;
   final bool isEncrypted;
+  final bool isScattered;
+  final bool isDeniable;
   final int declaredPayloadLength;
   final int formatVersion;
   final int saltLength;
@@ -69,6 +71,8 @@ class SupportedPayloadInspection extends InspectionResult {
   const SupportedPayloadInspection({
     required this.payloadType,
     required this.isEncrypted,
+    this.isScattered = false,
+    this.isDeniable = false,
     required this.declaredPayloadLength,
     required this.formatVersion,
     required this.saltLength,

@@ -48,7 +48,7 @@ class StegoDecoder {
       return const NoSupportedPayloadInspection();
     }
 
-    final ({int version, int flags, PayloadType payloadType, bool isEncrypted}) prefix;
+    final ({int version, int flags, PayloadType payloadType, bool isEncrypted, bool isScattered, bool isDeniable}) prefix;
     try {
       prefix = ContainerHeader.parsePrefix(prefixBytes);
     } on ContainerParsingException catch (e) {
@@ -92,6 +92,8 @@ class StegoDecoder {
     return SupportedPayloadInspection(
       payloadType: fullHeader.payloadType,
       isEncrypted: fullHeader.isEncrypted,
+      isScattered: fullHeader.isScattered,
+      isDeniable: fullHeader.isDeniable,
       declaredPayloadLength: fullHeader.payloadLength,
       formatVersion: fullHeader.version,
       saltLength: fullHeader.salt.length,
@@ -131,7 +133,7 @@ class StegoDecoder {
       );
     }
 
-    final ({int version, int flags, PayloadType payloadType, bool isEncrypted}) prefix;
+    final ({int version, int flags, PayloadType payloadType, bool isEncrypted, bool isScattered, bool isDeniable}) prefix;
     try {
       prefix = ContainerHeader.parsePrefix(prefixBytes);
     } on ContainerParsingException catch (e) {

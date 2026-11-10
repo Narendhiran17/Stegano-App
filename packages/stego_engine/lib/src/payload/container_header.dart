@@ -13,8 +13,14 @@ class ContainerHeader {
   /// Flag bitmask for encryption.
   static const int flagEncrypted = 0x01;
 
-  /// Reserved flag bits mask (must be 0 in V1).
-  static const int reservedFlagsMask = 0xFE;
+  /// Flag bitmask for PRNG pixel scattering (anti-steganalysis).
+  static const int flagScattered = 0x02;
+
+  /// Flag bitmask for plausible deniability (decoy + master dual slots).
+  static const int flagDeniable = 0x04;
+
+  /// Reserved flag bits mask (must be 0).
+  static const int reservedFlagsMask = 0xF8;
 
   /// Length of initial prefix: magic(4) + ver(1) + flags(1) + type(1) = 7 bytes.
   static const int prefixLength = 7;
@@ -45,6 +51,8 @@ class ContainerHeader {
   });
 
   bool get isEncrypted => (flags & flagEncrypted) != 0;
+  bool get isScattered => (flags & flagScattered) != 0;
+  bool get isDeniable => (flags & flagDeniable) != 0;
 
   /// Total byte length of this serialized header.
   int get headerByteLength =>
@@ -108,7 +116,7 @@ class ContainerHeader {
   }
 
   /// Parses the leading 7 bytes of a container header prefix.
-  static ({int version, int flags, PayloadType payloadType, bool isEncrypted}) parsePrefix(Uint8List bytes) {
+  static ({int version, int flags, PayloadType payloadType, bool isEncrypted, bool isScattered, bool isDeniable}) parsePrefix(Uint8List bytes) {
     if (bytes.length < prefixLength) {
       throw const ContainerParsingException('Data too short for container prefix.');
     }
@@ -134,7 +142,16 @@ class ContainerHeader {
     }
 
     final isEncrypted = (flags & flagEncrypted) != 0;
-    return (version: version, flags: flags, payloadType: payloadType, isEncrypted: isEncrypted);
+    final isScattered = (flags & flagScattered) != 0;
+    final isDeniable = (flags & flagDeniable) != 0;
+    return (
+      version: version,
+      flags: flags,
+      payloadType: payloadType,
+      isEncrypted: isEncrypted,
+      isScattered: isScattered,
+      isDeniable: isDeniable,
+    );
   }
 
   /// Parses a [ContainerHeader] from binary [bytes].

@@ -1,0 +1,66 @@
+name: StegoSuite CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  engine-tests:
+    name: Dart Steganography Engine Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/stego_engine
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install Dart Dependencies
+        run: dart pub get
+
+      - name: Run Engine Tests
+        run: dart test
+
+  android-build:
+    name: Android App Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/stego_app
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Run Android Unit Tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Assemble Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StegoSuite-Debug-APK
+          path: apps/stego_app/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
