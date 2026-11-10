@@ -871,6 +871,22 @@
               <div class="drop-sub-text">Any file up to carrier capacity</div>
             </div>
             <div id="file-selection-info" style="font-size: 11.5px; font-family: var(--font-mono); color: var(--primary-blue); font-weight: 600; margin-top: 4px;"></div>
+            <!-- Capacity Overflow Warning Box -->
+            <div id="payload-overflow-box" style="display: none; margin-top: 8px; padding: 10px; border-radius: 8px; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25);">
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <svg width="20" height="20" fill="none" stroke="#DC2626" viewBox="0 0 24 24" style="flex-shrink: 0; margin-top: 1px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <div style="font-size: 12px; color: var(--primary-text); line-height: 1.4; width: 100%;">
+                  <strong style="color: var(--critical);">Payload exceeds carrier capacity!</strong>
+                  <div id="payload-overflow-desc" style="color: var(--secondary-text); margin-top: 3px;"></div>
+                  <div id="payload-resize-action" style="margin-top: 8px; display: none;">
+                    <button type="button" class="btn-solid" style="background: var(--teal); font-size: 12px; padding: 7px 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;" onclick="autoCompressPayloadImage()">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                      <span>⚡ Auto-Resize / Compress Image to Fit Carrier</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Cryptographic Options -->
@@ -1291,7 +1307,11 @@
     }
 
     function triggerCameraCapture() {
-      document.getElementById('prep-camera-input').click();
+      if (isAndroid && window.AndroidBridge && typeof window.AndroidBridge.launchCamera === 'function') {
+        window.AndroidBridge.launchCamera();
+      } else {
+        document.getElementById('prep-camera-input').click();
+      }
     }
 
     function handleCameraFile(e) {
@@ -1373,6 +1393,7 @@
         .then(applyCapacityData);
       }
     }
+    window.setCarrierFromDataUrl = setCarrierFromDataUrl;
 
     function applyCapacityData(d) {
       rawCapacityBytes = d.rawCapacityBytes;
@@ -1399,9 +1420,58 @@
         selectedBinaryFileB64 = ev.target.result.split(',')[1];
         document.getElementById('file-selection-info').textContent =
           `Selected: ${file.name} \u2022 ${(file.size / 1024).toFixed(1)} KB \u2022 ${selectedBinaryFileType}`;
+        document.getElementById('file-selection-info').style.color = 'var(--primary-blue)';
         updatePayloadCalculations();
       };
       reader.readAsDataURL(file);
+    }
+
+    function autoCompressPayloadImage() {
+      if (!selectedBinaryFileB64 || !selectedBinaryFileType || !selectedBinaryFileType.startsWith('image/')) return;
+
+      const img = new Image();
+      img.onload = () => {
+        let maxDim = 1200;
+        let quality = 0.85;
+        let b64 = '';
+        let bytes = 0;
+        const targetBytes = Math.max(10240, Math.floor(rawCapacityBytes * 0.82) - 100);
+
+        for (let attempt = 0; attempt < 8; attempt++) {
+          let scale = Math.min(1.0, maxDim / Math.max(img.width, img.height));
+          let targetW = Math.max(100, Math.round(img.width * scale));
+          let targetH = Math.max(100, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          b64 = dataUrl.split(',')[1];
+          bytes = Math.round((b64.length * 3) / 4);
+
+          if (bytes <= targetBytes) {
+            break;
+          }
+
+          maxDim = Math.round(maxDim * 0.75);
+          quality = Math.max(0.4, quality - 0.12);
+        }
+
+        selectedBinaryFileB64 = b64;
+        selectedBinaryFileType = 'image/jpeg';
+        const baseName = selectedBinaryFileName.replace(/\.[^/.]+$/, "");
+        selectedBinaryFileName = `${baseName}_optimized.jpg`;
+
+        const info = document.getElementById('file-selection-info');
+        info.textContent = `Selected: ${selectedBinaryFileName} \u2022 ${(bytes / 1024).toFixed(1)} KB \u2022 image/jpeg (Optimized)`;
+        info.style.color = 'var(--teal)';
+
+        updatePayloadCalculations();
+      };
+      img.src = `data:${selectedBinaryFileType};base64,${selectedBinaryFileB64}`;
     }
 
     function updatePayloadCalculations() {
@@ -1437,12 +1507,16 @@
       const usedLabel = document.getElementById('cap-used-label');
       const availLabel = document.getElementById('cap-available-label');
       const submitBtn = document.getElementById('btn-submit-encode');
+      const overflowBox = document.getElementById('payload-overflow-box');
+      const overflowDesc = document.getElementById('payload-overflow-desc');
+      const resizeAction = document.getElementById('payload-resize-action');
 
       if (available <= 0) {
         pctLabel.textContent = '0%';
         meter.style.width = '0%';
         usedLabel.textContent = `Payload: ${payloadBytes} B`;
         availLabel.textContent = 'Available: 0 B';
+        if (overflowBox) overflowBox.style.display = 'none';
         return;
       }
 
@@ -1456,14 +1530,32 @@
         meter.style.background = 'var(--critical)';
         pctLabel.style.color = 'var(--critical)';
         submitBtn.disabled = true;
-      } else if (pct > 75) {
-        meter.style.background = 'var(--warning)';
-        pctLabel.style.color = 'var(--warning)';
-        submitBtn.disabled = false;
+
+        if (overflowBox) {
+          overflowBox.style.display = 'block';
+          if (isFile) {
+            overflowDesc.textContent = `Selected secret file is ${(payloadBytes / 1024).toFixed(1)} KB, but this carrier can only store up to ${(available / 1024).toFixed(1)} KB.`;
+            if (selectedBinaryFileType && selectedBinaryFileType.startsWith('image/')) {
+              resizeAction.style.display = 'block';
+            } else {
+              resizeAction.style.display = 'none';
+            }
+          } else {
+            overflowDesc.textContent = `Secret text exceeds carrier capacity by ${(totalRequired - available).toLocaleString()} bytes.`;
+            resizeAction.style.display = 'none';
+          }
+        }
       } else {
-        meter.style.background = 'var(--primary-blue)';
-        pctLabel.style.color = 'var(--primary-blue)';
-        submitBtn.disabled = false;
+        if (overflowBox) overflowBox.style.display = 'none';
+        if (pct > 75) {
+          meter.style.background = 'var(--warning)';
+          pctLabel.style.color = 'var(--warning)';
+          submitBtn.disabled = false;
+        } else {
+          meter.style.background = 'var(--primary-blue)';
+          pctLabel.style.color = 'var(--primary-blue)';
+          submitBtn.disabled = false;
+        }
       }
     }
 

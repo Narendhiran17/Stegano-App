@@ -20,6 +20,13 @@ import java.io.FileOutputStream
 class StegoBridge(private val context: Context) {
 
     @JavascriptInterface
+    fun launchCamera() {
+        (context as? MainActivity)?.runOnUiThread {
+            (context as? MainActivity)?.requestCameraAndCapture()
+        }
+    }
+
+    @JavascriptInterface
     fun calculateCapacity(carrierBase64: String, isEncrypted: Boolean): String {
         return try {
             val bytes = Base64.decode(carrierBase64, Base64.DEFAULT)
