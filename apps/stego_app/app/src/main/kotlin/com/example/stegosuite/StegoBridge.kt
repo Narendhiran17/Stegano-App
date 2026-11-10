@@ -260,11 +260,21 @@ class StegoBridge(private val context: Context) {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = mimeType.ifEmpty { "*/*" }
                 putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newUri(context.contentResolver, filename, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(shareIntent, "Share Stego File").apply {
+
+            val resInfoList = context.packageManager.queryIntentActivities(shareIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val chooser = Intent.createChooser(shareIntent, "Share Lossless Stego File").apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(chooser)
         } catch (e: Exception) {
             Toast.makeText(context, "Share error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
