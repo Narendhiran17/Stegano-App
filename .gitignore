@@ -1,0 +1,73 @@
+# ==========================================
+# StegoSuite Monorepo - Git Ignore Rules
+# ==========================================
+
+# ------------------------------------------
+# Built Artifacts & Binaries
+# ------------------------------------------
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+*.so
+*.dll
+*.exe
+
+# ------------------------------------------
+# Android & Gradle
+# ------------------------------------------
+.gradle/
+build/
+*/build/
+*/*/build/
+local.properties
+.cxx/
+.externalNativeBuild/
+captures/
+*.hprof
+*.jks
+*.keystore
+
+# ------------------------------------------
+# Kotlin & Java
+# ------------------------------------------
+.kotlin/
+*.kotlin_module
+hs_err_pid*
+replay_pid*
+
+# ------------------------------------------
+# Dart & Flutter
+# ------------------------------------------
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+packages/**/pubspec.lock
+
+# ------------------------------------------
+# IDEs, Editors & Tooling
+# ------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# ------------------------------------------
+# OS Files & Local Wrappers
+# ------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+powershell.cmd
+*.log
+*.tmp
