@@ -769,6 +769,7 @@
           <button class="preset-btn" onclick="loadCarrierPreset('document')">Document</button>
           <button class="preset-btn" onclick="loadCarrierPreset('landscape')">Landscape</button>
           <button class="preset-btn" onclick="loadCarrierPreset('abstract')">Abstract</button>
+          <button class="preset-btn" style="color: var(--teal); border-color: var(--teal); font-weight: 600;" onclick="loadCarrierPreset('hd4k')">⚡ 4K Canvas (~4.6MB)</button>
         </div>
       </div>
 
@@ -832,6 +833,28 @@
               <td>Preserved (0 bits embedded)</td>
             </tr>
           </table>
+
+          <!-- Carrier Capacity Upscaler -->
+          <div id="carrier-upscale-control" style="margin-top: 0.85rem; padding: 0.75rem; border: 1px dashed var(--border); border-radius: 8px; background: rgba(37, 99, 235, 0.03);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 11.5px; font-weight: 600; color: var(--primary-text); display: flex; align-items: center; gap: 4px;">
+                <svg width="14" height="14" fill="none" stroke="var(--primary-blue)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                Scale Up Carrier Capacity
+              </span>
+              <span style="font-size: 10.5px; color: var(--secondary-text);">Enlarges canvas to hold >2MB files</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-outline" style="padding: 0.4rem 0.2rem; font-size: 11px; text-align: center; cursor: pointer;" onclick="scaleCarrierByFactor(2.0)">
+                ⚡ 2× HD (~1.3MB)
+              </button>
+              <button type="button" class="btn-outline" style="padding: 0.4rem 0.2rem; font-size: 11px; text-align: center; cursor: pointer;" onclick="scaleCarrierByFactor(3.0)">
+                ⚡ 3× FHD (~3.0MB)
+              </button>
+              <button type="button" class="btn-outline" style="padding: 0.4rem 0.2rem; font-size: 11px; text-align: center; cursor: pointer;" onclick="scaleCarrierToResolution(3840)">
+                ⚡ 4K Ultra (~4.8MB)
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Panel 2: Payload & Security -->
@@ -878,11 +901,19 @@
                 <div style="font-size: 12px; color: var(--primary-text); line-height: 1.4; width: 100%;">
                   <strong style="color: var(--critical);">Payload exceeds carrier capacity!</strong>
                   <div id="payload-overflow-desc" style="color: var(--secondary-text); margin-top: 3px;"></div>
-                  <div id="payload-resize-action" style="margin-top: 8px; display: none;">
-                    <button type="button" class="btn-solid" style="background: var(--teal); font-size: 12px; padding: 7px 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;" onclick="autoCompressPayloadImage()">
-                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                      <span>⚡ Auto-Resize / Compress Image to Fit Carrier</span>
+                  <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Option 1: Scale Up Carrier Losslessly to fit payload -->
+                    <button type="button" class="btn-solid" style="background: var(--primary-blue); font-size: 12px; padding: 7px 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;" onclick="scaleUpCarrierToFitPayload()">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                      <span>⚡ Scale Up Carrier to Fit Payload (Lossless)</span>
                     </button>
+                    <!-- Option 2: Auto-Resize / Compress image payload -->
+                    <div id="payload-resize-action" style="display: none;">
+                      <button type="button" class="btn-solid" style="background: var(--teal); font-size: 12px; padding: 7px 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;" onclick="autoCompressPayloadImage()">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        <span>⚡ Compress Payload Image to Fit Carrier</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1324,6 +1355,37 @@
 
     function loadCarrierPreset(type) {
       const canvas = document.createElement('canvas');
+
+      if (type === 'hd4k') {
+        canvas.width = 3840;
+        canvas.height = 3200;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 3840, 3200);
+        grad.addColorStop(0, '#0F172A');
+        grad.addColorStop(0.3, '#1E3A8A');
+        grad.addColorStop(0.7, '#0D9488');
+        grad.addColorStop(1, '#0284C7');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 3840, 3200);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        for (let i = 0; i < 30; i++) {
+          ctx.beginPath();
+          ctx.arc(200 + (i % 6) * 600, 300 + Math.floor(i / 6) * 550, 160 + (i % 4) * 50, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 96px Inter, sans-serif';
+        ctx.fillText('STEGOSUITE ULTRA HD 4K CARRIER', 150, 250);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '54px Inter, sans-serif';
+        ctx.fillText('Resolution: 3840 \u00D7 3200 px \u2022 Capacity: ~4.6 MB', 150, 340);
+
+        setCarrierFromDataUrl(canvas.toDataURL('image/png'));
+        return;
+      }
+
       canvas.width = 400;
       canvas.height = 300;
       const ctx = canvas.getContext('2d');
@@ -1474,6 +1536,127 @@
       img.src = `data:${selectedBinaryFileType};base64,${selectedBinaryFileB64}`;
     }
 
+    function scaleUpCarrierToFitPayload() {
+      if (!currentCarrierB64) {
+        alert('Please select or capture a carrier image first.');
+        return;
+      }
+
+      const isFile = document.getElementById('seg-file').classList.contains('active');
+      const isEnc = document.getElementById('check-encrypt').checked;
+      const isDeniable = document.getElementById('check-deniable').checked;
+
+      let payloadBytes = 0;
+      if (isFile) {
+        if (selectedBinaryFileB64) {
+          payloadBytes = Math.round((selectedBinaryFileB64.length * 3) / 4) + 4 + selectedBinaryFileName.length + selectedBinaryFileType.length;
+        }
+      } else {
+        payloadBytes = new TextEncoder().encode(document.getElementById('input-text').value).length;
+      }
+
+      if (isDeniable) {
+        payloadBytes += new TextEncoder().encode(document.getElementById('input-decoy-text').value).length + 48;
+      }
+
+      const overhead = isEnc ? 57 : 13;
+      const totalRequired = payloadBytes + overhead;
+
+      if (totalRequired <= 0) {
+        alert('Please enter text or select a secret payload file first.');
+        return;
+      }
+
+      // Add 20% safety margin for comfortable capacity fit
+      const targetCapacityBytes = Math.ceil(totalRequired * 1.20);
+
+      const img = new Image();
+      img.onload = () => {
+        const currentPixels = img.width * img.height;
+        const currentCapacity = (currentPixels * 3) / 8;
+        const scale = Math.max(1.15, Math.sqrt(targetCapacityBytes / Math.max(1, currentCapacity)));
+
+        let targetW = Math.round(img.width * scale);
+        let targetH = Math.round(img.height * scale);
+
+        const maxDim = Math.max(targetW, targetH);
+        if (maxDim > 4096) {
+          const capScale = 4096 / maxDim;
+          targetW = Math.round(targetW * capScale);
+          targetH = Math.round(targetH * capScale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        setCarrierFromDataUrl(dataUrl);
+      };
+      img.src = 'data:image/png;base64,' + currentCarrierB64;
+    }
+
+    function scaleCarrierByFactor(factor) {
+      if (!currentCarrierB64) {
+        alert('Please select or capture a carrier image first.');
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let targetW = Math.round(img.width * factor);
+        let targetH = Math.round(img.height * factor);
+
+        const maxDim = Math.max(targetW, targetH);
+        if (maxDim > 4096) {
+          const capScale = 4096 / maxDim;
+          targetW = Math.round(targetW * capScale);
+          targetH = Math.round(targetH * capScale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        setCarrierFromDataUrl(dataUrl);
+      };
+      img.src = 'data:image/png;base64,' + currentCarrierB64;
+    }
+
+    function scaleCarrierToResolution(targetEdge) {
+      if (!currentCarrierB64) {
+        alert('Please select or capture a carrier image first.');
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const currentMax = Math.max(img.width, img.height);
+        const scale = targetEdge / currentMax;
+        let targetW = Math.round(img.width * scale);
+        let targetH = Math.round(img.height * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        setCarrierFromDataUrl(dataUrl);
+      };
+      img.src = 'data:image/png;base64,' + currentCarrierB64;
+    }
+
     function updatePayloadCalculations() {
       const isFile = document.getElementById('seg-file').classList.contains('active');
       const isEnc = document.getElementById('check-encrypt').checked;
@@ -1534,14 +1717,17 @@
         if (overflowBox) {
           overflowBox.style.display = 'block';
           if (isFile) {
-            overflowDesc.textContent = `Selected secret file is ${(payloadBytes / 1024).toFixed(1)} KB, but this carrier can only store up to ${(available / 1024).toFixed(1)} KB.`;
+            const reqKB = (payloadBytes / 1024).toFixed(1);
+            const reqMB = (payloadBytes / (1024 * 1024)).toFixed(2);
+            const availKB = (available / 1024).toFixed(1);
+            overflowDesc.textContent = `Selected secret file is ${reqKB} KB (${reqMB} MB), but this carrier can currently hold up to ${availKB} KB. You can scale up the carrier losslessly below or compress the payload.`;
             if (selectedBinaryFileType && selectedBinaryFileType.startsWith('image/')) {
               resizeAction.style.display = 'block';
             } else {
               resizeAction.style.display = 'none';
             }
           } else {
-            overflowDesc.textContent = `Secret text exceeds carrier capacity by ${(totalRequired - available).toLocaleString()} bytes.`;
+            overflowDesc.textContent = `Secret text exceeds carrier capacity by ${(totalRequired - available).toLocaleString()} bytes. Scale up carrier to expand capacity.`;
             resizeAction.style.display = 'none';
           }
         }

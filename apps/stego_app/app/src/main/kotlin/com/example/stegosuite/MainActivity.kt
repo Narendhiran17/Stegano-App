@@ -120,10 +120,10 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (_: Exception) {}
 
-            // Cap dimensions to 2560px for fast embedding and optimal memory
+            // Cap dimensions to 4096px for high capacity steganography (supports > 2MB - 4.5MB payloads)
             val maxDim = maxOf(bitmap.width, bitmap.height)
-            if (maxDim > 2560) {
-                val scale = 2560f / maxDim
+            if (maxDim > 4096) {
+                val scale = 4096f / maxDim
                 bitmap = Bitmap.createScaledBitmap(
                     bitmap,
                     (bitmap.width * scale).toInt(),
