@@ -406,6 +406,11 @@ object StegoEngine {
     }
 
     fun inspect(carrierBytes: ByteArray): InspectionInfo {
+        val isJpeg = carrierBytes.size >= 3 &&
+                (carrierBytes[0].toInt() and 0xFF) == 0xFF &&
+                (carrierBytes[1].toInt() and 0xFF) == 0xD8 &&
+                (carrierBytes[2].toInt() and 0xFF) == 0xFF
+
         val bitmap = BitmapFactory.decodeByteArray(carrierBytes, 0, carrierBytes.size)
             ?: return InspectionInfo(status = "invalid_image", message = "Invalid carrier image")
 
@@ -414,6 +419,12 @@ object StegoEngine {
 
         val prefix = extractHeaderBytes(pixels, 7)
         if (prefix[0] != MAGIC[0] || prefix[1] != MAGIC[1] || prefix[2] != MAGIC[2] || prefix[3] != MAGIC[3]) {
+            if (isJpeg) {
+                return InspectionInfo(
+                    status = "jpeg_compressed",
+                    message = "WhatsApp / Social Media Photo Compression Detected! WhatsApp recompressed this image into a lossy JPEG, which erased the hidden steganographic bits. You must send and receive as a Document."
+                )
+            }
             return InspectionInfo(status = "no_payload", message = "No valid STEG signature detected.")
         }
 
@@ -448,6 +459,11 @@ object StegoEngine {
     }
 
     fun extract(carrierBytes: ByteArray, password: String?): ExtractionInfo {
+        val isJpeg = carrierBytes.size >= 3 &&
+                (carrierBytes[0].toInt() and 0xFF) == 0xFF &&
+                (carrierBytes[1].toInt() and 0xFF) == 0xD8 &&
+                (carrierBytes[2].toInt() and 0xFF) == 0xFF
+
         val bitmap = BitmapFactory.decodeByteArray(carrierBytes, 0, carrierBytes.size)
             ?: return ExtractionInfo(success = false, error = "Invalid image carrier")
 
@@ -457,6 +473,12 @@ object StegoEngine {
 
         val prefix = extractHeaderBytes(pixels, 7)
         if (prefix[0] != MAGIC[0] || prefix[1] != MAGIC[1] || prefix[2] != MAGIC[2] || prefix[3] != MAGIC[3]) {
+            if (isJpeg) {
+                return ExtractionInfo(
+                    success = false,
+                    error = "WhatsApp / Social Media photo compression detected! WhatsApp recompressed this image into a lossy JPEG, which erased all hidden data bits. To receive secret messages on WhatsApp, the sender must send the PNG as a 'Document' (📎 Paperclip -> Document)."
+                )
+            }
             return ExtractionInfo(success = false, error = "No STEG container found")
         }
 

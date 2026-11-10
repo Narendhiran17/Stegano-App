@@ -2042,6 +2042,25 @@
 
           passSec.style.display = d.payload.isEncrypted ? 'flex' : 'none';
           btnExtract.style.display = 'inline-flex';
+        } else if (d.status === 'jpeg_compressed') {
+          box.className = 'callout critical';
+          title.textContent = '\u26A0\uFE0F WhatsApp / Social Media Photo Compression Detected!';
+          desc.innerHTML = `
+            <strong>Why this occurred:</strong><br>
+            This image was received in <strong>lossy JPEG</strong> format. When an image is sent on WhatsApp as a standard "Photo", WhatsApp automatically recompresses it to save data, which permanently destroys the invisible steganography bits.<br><br>
+            <strong>How to receive with 100% of the secret intact:</strong><br>
+            The sender must share it as a <strong>Document</strong> rather than a photo:<br>
+            &bull; In WhatsApp, tap the <strong>\uD83D\uDCCE Paperclip &rarr; Document &rarr; Browse documents</strong> and select <code>stego_carrier.png</code>.<br>
+            &bull; Or in StegoSuite Image Preparer, tap <strong>"Share as Document (Lossless)"</strong>.<br>
+            Documents are transferred byte-for-byte lossless without any WhatsApp compression!
+          `;
+          document.getElementById('ext-spec-version').textContent = 'N/A';
+          document.getElementById('ext-spec-type').textContent = 'CORRUPTED BY JPEG';
+          document.getElementById('ext-spec-enc').textContent = 'Bits Erased';
+          document.getElementById('ext-spec-scatter').textContent = 'N/A';
+          document.getElementById('ext-spec-len').textContent = '0 bytes';
+          passSec.style.display = 'none';
+          btnExtract.style.display = 'none';
         } else if (d.status === 'no_payload') {
           box.className = 'callout warning';
           title.textContent = 'No Supported Container Signature';
